@@ -105,16 +105,26 @@ protected:
                 printf("Name: %s, ",(*it)->GetName().c_str());
                 // find those with "lightrgb" in their name
 //                if(name.find("light")!=std::string::npos)
+                if(name.find("unit")!=std::string::npos)
                 {
-                    // calculate the relative position
-                    math::Pose p = myPose - ptr->GetWorldPose();
-//                    printf("relpos: %f,%f ",p.pos.x,p.pos.y);
-                    double angle = atan2(p.pos.y,-p.pos.x); // angle in world space
-                    angle += myPose.rot.GetYaw(); // convert to robot space
-                    angle = fmod(angle+2.0*3.14145927,2*3.1415927);
+                    // calculate the relative position of both corners
+                    // of the AABB
+                    math::Box bbox = ptr->GetBoundingBox();
+                    
+                    math::Vector3 v = myPose.pos - bbox.min;
+//                    printf("relpos1: %f,%f ",p.pos.x,p.pos.y);
+                    double angle1 = atan2(v.y,-v.x); // angle in world space
+                    angle1 += myPose.rot.GetYaw(); // convert to robot space
+                    angle1 = fmod(angle1+2.0*3.14145927,2*3.1415927);
+                    
+                    v = myPose.pos - bbox.max;
+//                    printf("relpos2: %f,%f ",p.pos.x,p.pos.y);
+                    double angle2 = atan2(v.y,-v.x); // angle in world space
+                    angle2 += myPose.rot.GetYaw(); // convert to robot space
+                    angle2 = fmod(angle2+2.0*3.14145927,2*3.1415927);
                     
                     
-//                    printf("angle: %f\n",angle);
+                    printf("angles: %f,%f\n",angle1,angle2);
                     // extract the colour - it's the three chars
                     // after "lightrgb" as hex digits
 //                    int r = name.at(8);
