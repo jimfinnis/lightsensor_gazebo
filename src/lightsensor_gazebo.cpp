@@ -10,15 +10,18 @@
 #include "gazebo/common/common.hh"
 
 #include "lightsensor_gazebo/LightSensor.h"
+const double PI = 3.1415927;
 
 namespace gazebo {
 
 class LightSensor : public ModelPlugin {
 public:
     LightSensor(){
+        pixelStore = NULL;
     }
     
     virtual ~LightSensor(){
+        if(pixelStore)delete[] pixelStore;
     }
 private:
     
@@ -63,7 +66,7 @@ protected:
         // assert that the body by link_name_ exists
         if (!link)
         {
-            ROS_FATAL("GazeboRosIMU plugin error: bodyName: %s does not exist\n", linkname.c_str());
+            ROS_FATAL("lightsensor_gazebo plugin error: bodyName: %s does not exist\n", linkname.c_str());
             return;
         }
         
@@ -77,6 +80,11 @@ protected:
         else
             topic = "pixels";
         
+        if(_sdf->HasElement("pixels"))
+            pixelCt = _sdf->GetElement("pixels")->Get<int>();
+        else
+            pixelCt = 10;
+        
         // get a node handle
         node = new ros::NodeHandle(namespc);
         
@@ -89,6 +97,8 @@ protected:
         
         updateConnection = event::Events::ConnectWorldUpdateBegin(
                                                                   boost::bind(&LightSensor::OnUpdate,this,_1));
+        
+        pixelStore = new double[pixelCt*3];
     }
     
     virtual void OnUpdate(const common::UpdateInfo &info){
@@ -96,13 +106,18 @@ protected:
             lightsensor_gazebo::Pixel p;
             math::Pose myPose = link->GetWorldPose();
             
+            // zero the temporary pixel store
+            for(int i=0;i<pixelCt*3;i++)
+                pixelStore[i]=0;
+            
             // iterate through the objects in the world
             physics::Model_V list=world->GetModels();
             for(physics::Model_V::iterator it=list.begin();
                 it!=list.end();++it){
                 physics::ModelPtr ptr = *it;
                 std::string name = ptr->GetName();
-                printf("Name: %s, ",(*it)->GetName().c_str());
+//                printf("Name: %s, ",(*it)->GetName().c_str());
+                
                 // find those with "lightrgb" in their name
 //                if(name.find("light")!=std::string::npos)
                 if(name.find("unit")!=std::string::npos)
@@ -115,27 +130,66 @@ protected:
 //                    printf("relpos1: %f,%f ",p.pos.x,p.pos.y);
                     double angle1 = atan2(v.y,-v.x); // angle in world space
                     angle1 += myPose.rot.GetYaw(); // convert to robot space
-                    angle1 = fmod(angle1+2.0*3.14145927,2*3.1415927);
                     
                     v = myPose.pos - bbox.max;
 //                    printf("relpos2: %f,%f ",p.pos.x,p.pos.y);
                     double angle2 = atan2(v.y,-v.x); // angle in world space
                     angle2 += myPose.rot.GetYaw(); // convert to robot space
-                    angle2 = fmod(angle2+2.0*3.14145927,2*3.1415927);
+                    angle1 = fmod(angle1+6.0*PI,2.0*PI);
+                    angle2 = fmod(angle2+6.0*PI,2.0*PI);
+//                    printf("angles: %f,%f\n",angle1,angle2);
                     
+                    // rescale the angles to 0-1
+                    angle1 *= 1.0/(2.0*PI);
+                    angle2 *= 1.0/(2.0*PI);
                     
-                    printf("angles: %f,%f\n",angle1,angle2);
                     // extract the colour - it's the three chars
                     // after "lightrgb" as hex digits
-//                    int r = name.at(8);
-//                    int g = name.at(9);
-//                    int b = name.at(10);
+//                    double r = name.at(8)-'0;;
+//                    double g = name.at(9)-'0';
+//                    double b = name.at(10)-'0';
+                    double r = 15;
+                    double g = 15;
+                    double b = 15;
+                    
+                    // work out the start and end pixels
+                    int p1 =(int)(angle1*(double)pixelCt);
+                    int p2 =  (int)(angle2*(double)pixelCt);
+//                    printf(" pixels1: %d,%d\n",p1,p2);
+                    
+                    // move "front" to the the middle and mod
+                    p1 = (p1+pixelCt/2)%pixelCt;
+                    p2 = (p2+pixelCt/2)%pixelCt;
+                    
+                    // work out the shortest route
+                    int start,end;
+                    if(p1>p2)std::swap(p1,p2);
+                    if(p2-p1 > (p1+pixelCt)-p2){
+                        // go through zero
+                        start = p2;
+                        end = p1+pixelCt;
+                    } else {
+                        start = p1;
+                        end = p2;
+                    }
+                    
+                    // add the pixels into the accumulators
+                    for(int i=start;i<=end;i++){
+                        int j = i%pixelCt;
+//                        printf("Fill %d\n",j);
+                        pixelStore[j*3+0]+=r;
+                        pixelStore[j*3+1]+=g;
+                        pixelStore[j*3+2]+=b;
+                    }
                 }
             }
-                
             
+            // construct the final data and publish
             data.pixels.clear();
-            for(int i=0;i<10;i++){
+            for(int i=0;i<pixelCt;i++){
+                p.r=pixelStore[i*3+0];
+                p.g=pixelStore[i*3+1];
+                p.b=pixelStore[i*3+2];
                 data.pixels.push_back(p);
             }
             pub.publish(data);
@@ -144,7 +198,8 @@ protected:
     }
 
 private:
-    
+    int pixelCt;
+    double *pixelStore;
     lightsensor_gazebo::LightSensor data;
     
     physics::ModelPtr model;
