@@ -1,6 +1,6 @@
 # lightsensor_gazebo
 
-A trivial "light sensor" for Gazebo, which traverses the world
+A trivial "light sensor" for Gazebo under ROS, which traverses the world
 calculating angles to specially marked models and producing
 an array of pixel values from the extents of those models.
 
