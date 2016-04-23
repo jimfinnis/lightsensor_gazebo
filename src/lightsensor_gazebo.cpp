@@ -119,8 +119,7 @@ protected:
 //                printf("Name: %s, ",(*it)->GetName().c_str());
                 
                 // find those with "lightrgb" in their name
-//                if(name.find("light")!=std::string::npos)
-                if(name.find("unit")!=std::string::npos)
+                if(name.find("lightrgb")!=std::string::npos)
                 {
                     // calculate the relative position of both corners
                     // of the AABB
@@ -145,12 +144,9 @@ protected:
                     
                     // extract the colour - it's the three chars
                     // after "lightrgb" as hex digits
-//                    double r = name.at(8)-'0;;
-//                    double g = name.at(9)-'0';
-//                    double b = name.at(10)-'0';
-                    double r = 15;
-                    double g = 15;
-                    double b = 15;
+                    double r = name.at(8)-'0';
+                    double g = name.at(9)-'0';
+                    double b = name.at(10)-'0';
                     
                     // work out the start and end pixels
                     int p1 =(int)(angle1*(double)pixelCt);
@@ -187,9 +183,9 @@ protected:
             // construct the final data and publish
             data.pixels.clear();
             for(int i=0;i<pixelCt;i++){
-                p.r=pixelStore[i*3+0];
-                p.g=pixelStore[i*3+1];
-                p.b=pixelStore[i*3+2];
+                p.r=std::min(255.0,pixelStore[i*3+0]);
+                p.g=std::min(255.0,pixelStore[i*3+1]);
+                p.b=std::min(255.0,pixelStore[i*3+2]);
                 data.pixels.push_back(p);
             }
             pub.publish(data);

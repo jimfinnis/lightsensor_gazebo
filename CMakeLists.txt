@@ -6,7 +6,7 @@ set(gazebo_DIR /usr/share/gazebo/cmake)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp gazebo_ros gazebo
+find_package(catkin REQUIRED COMPONENTS roscpp gazebo_ros gazebo rospy
     message_generation
     std_msgs)
 
