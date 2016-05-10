@@ -16,7 +16,7 @@ radius = width*0.4
 font = pygame.font.Font(None,18)
 
 def convcol(v):
-    v=v*10+20
+    v=v+20
     if v>255: v=255
     return v
 
@@ -53,7 +53,7 @@ def callback(data):
 
 
 
-rospy.Subscriber("pixels",LightSensor,callback)
+rospy.Subscriber("light",LightSensor,callback)
 
 rospy.spin()
 
