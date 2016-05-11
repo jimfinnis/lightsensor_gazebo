@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(lightsensor_gazebo)
 
+include(FindPkgConfig)
+
+pkg_search_module(SDL REQUIRED sdl2)
+pkg_search_module(SDL2_TTF REQUIRED SDL2_ttf)
+pkg_search_module(SDL2_GFX REQUIRED SDL2_gfx)
+
+set(SDL_CF ${SDL_CFLAGS} ${SDL2_TTF_CFLAGS} ${SDL2_GFX_CFLAGS})
+set(SDL_LD ${SDL_LDFLAGS} ${SDL2_TTF_LDFLAGS} ${SDL2_GFX_LDFLAGS})
+
+
 set(gazebo_DIR /usr/share/gazebo/cmake)
 
 ## Find catkin macros and libraries
@@ -119,8 +129,23 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-  ${catkin_INCLUDE_DIRS}
+    $ENV{HOME}/phd/code/wheelyPioneer
+    ${catkin_INCLUDE_DIRS}
 )
+
+add_executable(watch_node 
+    src/watch_node.cpp
+    $ENV{HOME}/phd/code/wheelyPioneer/sdl.cpp
+)
+add_dependencies(watch_node 
+    ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+target_link_libraries(watch_node
+   ${SDL_LD}
+   ${catkin_LIBRARIES}
+)
+target_compile_options(watch_node PUBLIC ${SDL_CF} -std=c++11)
+
 
 ## Declare a C++ library
  add_library(lightsensor_gazebo
@@ -136,6 +161,7 @@ add_dependencies(lightsensor_gazebo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
  ${GAZEBO_LIBRARIES}
    ${catkin_LIBRARIES}
 )
+
 
 #############
 ## Install ##

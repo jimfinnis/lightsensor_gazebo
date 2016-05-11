@@ -78,7 +78,7 @@ protected:
         if(_sdf->HasElement("topic"))
             topic = _sdf->GetElement("topic")->Get<std::string>();
         else
-            topic = "pixels";
+            topic = "light";
         
         if(_sdf->HasElement("pixels"))
             pixelCt = _sdf->GetElement("pixels")->Get<int>();

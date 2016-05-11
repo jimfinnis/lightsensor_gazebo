@@ -18,20 +18,24 @@ The simulation is entirely 2D (in the XY plane) and there is no occlusion. If mu
 overlap a sensor, they are added together (with each colour channel clamped at 255).
 
 ## Output
-The output is published on the *pixels* topic by default, is of type LightSensor, which is an array of Pixel, which
+The output is published on the *light* topic by default, is of type LightSensor, which is an array of Pixel, which
 is 3 uint8 values (r,g,b). The middle value is the front sensor, with the first half of
 the values covering the left side and the second half covering the right side
 of the robot.
 
 ## watch.py
-This script, which requires *pygame*, displays the *pixels* topic as a circle
+This script, which requires *pygame*, displays the *light* topic as a circle
 of coloured squares. It's a useful example of working with the output.
+
+## watch_node
+This is a C++ program which monitors both the lightsensor and the sonars
+using the wheelyPioneer rendering code.
 
 ## Elements
 * **robotNamespace** - the namespace for the broadcast topic (default none)
 * **interval** - the update interval in seconds (default 0.1)
 * **bodyName** - the name of the link to which the sensor is attached (required)
-* **topic** - the broadcast topic (default *pixels*)
+* **topic** - the broadcast topic (default *light*)
 * **pixels** - the resolution of the sensor, as the number of pixels (default 10)
 
 ## Example URDF
