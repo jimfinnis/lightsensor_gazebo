@@ -45,10 +45,12 @@ void renderLightSensor(){
         double y = sin(angle)*radius;
         double x = -cos(angle)*radius;
         
-        uint32_t col = pix[i][2];
-        col |= pix[i][1]<<8;
-        col |= pix[i][2]<<16;
+        uint32_t col = 255;
+        col |= pix[i][0]<<24;
+        col |= pix[i][1]<<16;
+        col |= pix[i][2]<<8;
         
+        sdl.setOutline(0);
         sdl.setFill(col);
         context.circle(x,y,0.1);
         angle += step;

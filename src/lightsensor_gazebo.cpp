@@ -101,6 +101,10 @@ protected:
         pixelStore = new double[pixelCt*3];
     }
     
+    inline int hex2int(char c){
+        return (c>'a') ? (c-'a')+10 : c-'0';
+    }
+    
     virtual void OnUpdate(const common::UpdateInfo &info){
         if(updateOK){
             lightsensor_gazebo::Pixel p;
@@ -144,9 +148,9 @@ protected:
                     
                     // extract the colour - it's the three chars
                     // after "lightrgb" as hex digits
-                    double r = name.at(8)-'0';
-                    double g = name.at(9)-'0';
-                    double b = name.at(10)-'0';
+                    double r = hex2int(name.at(8))*16;
+                    double g = hex2int(name.at(9))*16;
+                    double b = hex2int(name.at(10))*16;
                     
                     // work out the start and end pixels
                     int p1 =(int)(angle1*(double)pixelCt);
@@ -172,10 +176,10 @@ protected:
                     // add the pixels into the accumulators
                     for(int i=start;i<=end;i++){
                         int j = i%pixelCt;
-//                        printf("Fill %d\n",j);
                         pixelStore[j*3+0]+=r;
                         pixelStore[j*3+1]+=g;
                         pixelStore[j*3+2]+=b;
+//                        printf("Fill %d %f %f %f\n",j,r,g,b);
                     }
                 }
             }
