@@ -83,7 +83,7 @@ protected:
         if(_sdf->HasElement("pixels"))
             pixelCt = _sdf->GetElement("pixels")->Get<int>();
         else
-            pixelCt = 10;
+            pixelCt = 16;
         
         // get a node handle
         node = new ros::NodeHandle(namespc);

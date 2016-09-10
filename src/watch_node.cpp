@@ -18,7 +18,7 @@
 SDL sdl(600,600);
 SDLContext context(&sdl);
 World world;
-Wheely robot(0,0,0);
+Wheely robot(0,0,0,16);
 PioneerRenderer rRobot(&context);
 
 void sonarCallback(const sensor_msgs::Range::ConstPtr& msg,int i){
