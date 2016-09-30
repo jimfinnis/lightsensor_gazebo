@@ -49,6 +49,17 @@ def callback(data):
         
         angle = angle+step
         n=n+1
+    # show the actual sensor positions
+    step = (2*math.pi)/8
+    angle = 0
+    for i in range(0,8):
+        x = math.sin(angle)*radius*0.5
+        y = math.cos(angle)*radius*0.5
+        pygame.draw.rect(screen,[255,0,0],
+        [width/2+x-2,width/2+y-2,5,5])
+        angle=angle+step
+        
+    
     pygame.display.flip()
 
 
