@@ -12,6 +12,60 @@
 #include "lightsensor_gazebo/LightSensor.h"
 const double PI = 3.1415927;
 
+
+// distance->brightness from experimental data
+/*
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  8.201e-02  5.817e-04  140.98   <2e-16 ***
+d$dist      -9.250e-02  2.832e-03  -32.66   <2e-16 ***
+I(d$dist^2)  8.385e-02  4.199e-03   19.97   <2e-16 ***
+I(d$dist^3) -3.995e-02  2.637e-03  -15.15   <2e-16 ***
+I(d$dist^4)  9.108e-03  7.371e-04   12.36   <2e-16 ***
+I(d$dist^5) -7.897e-04  7.564e-05  -10.44   <2e-16 ***
+ */
+double getBright(double x){
+    // get the predicted "powerin"
+    double y =
+8.201e-2 +
+-9.250e-2 * x+
+8.385e-2 * x*x+
+-3.995e-2 * x*x*x+
+9.108e-3 * x*x*x*x+
+-7.897e-4 * x*x*x*x*x;
+    y/=0.005; // get actual total light in
+    printf("Bright: %f\n",y);
+    return y;
+}
+
+
+// blur code copied from bridgeserver and modified
+// for doubles. Should have templated it.
+
+#define KSIZE 5
+#define HALFK ((KSIZE-1)/2)
+float k[] = {0.402620,0.244201,0.054489}; // k=5, sigma=1
+
+
+void blurnorm(double *out,double *p,double norm,int ch,int n){
+    double sum=0;
+    for(int i=0;i<n;i++){
+        double t = 0;
+        for(int j=-HALFK;j<=HALFK;j++){
+            int px = (i+j+n)%n;
+            t+= p[px*3+ch]*k[j<0?-j:j];
+        }
+        t /= (double)KSIZE;
+        out[i*3+ch]=t;
+        sum+=t;
+    }
+    
+    // now make the values sum to norm
+    double normfac = norm/sum;
+    for(int i=0;i<n;i++){
+        out[i*3+ch]*=normfac;
+    }
+}
+
 namespace gazebo {
 
 class LightSensor : public ModelPlugin {
@@ -21,7 +75,10 @@ public:
     }
     
     virtual ~LightSensor(){
-        if(pixelStore)delete[] pixelStore;
+        if(pixelStore){
+            delete[] pixelStore;
+            delete[] blurbuf;
+        }
     }
 private:
     
@@ -83,7 +140,7 @@ protected:
         if(_sdf->HasElement("pixels"))
             pixelCt = _sdf->GetElement("pixels")->Get<int>();
         else
-            pixelCt = 16;
+            pixelCt = 100;
         
         // get a node handle
         node = new ros::NodeHandle(namespc);
@@ -99,6 +156,7 @@ protected:
                                                                   boost::bind(&LightSensor::OnUpdate,this,_1));
         
         pixelStore = new double[pixelCt*3];
+        blurbuf = new double[pixelCt*3];
     }
     
     inline int hex2int(char c){
@@ -109,10 +167,11 @@ protected:
         if(updateOK){
             lightsensor_gazebo::Pixel p;
             math::Pose myPose = link->GetWorldPose();
+            double distance;
             
             // zero the temporary pixel store
             for(int i=0;i<pixelCt*3;i++)
-                pixelStore[i]=0;
+                blurbuf[i]=0;
             
             // iterate through the objects in the world
             physics::Model_V list=world->GetModels();
@@ -123,24 +182,37 @@ protected:
 //                printf("Name: %s, ",(*it)->GetName().c_str());
                 
                 // find those with "lightrgb" in their name
+                // DISTANCE CALC ASSUMES THERE'S ONLY ONE
                 if(name.find("lightrgb")!=std::string::npos)
                 {
+                    // work out the distance of the emitter
+                    // (not necessarily a box). We go from the
+                    // centre.
+                    math::Pose boxpose = ptr->GetWorldPose();
+                    double boxx = boxpose.pos.x - myPose.pos.x;
+                    double boxy = boxpose.pos.y - myPose.pos.y;
+                    distance = sqrt(boxx*boxx+boxy*boxy);
+                    
+                    
+                    printf("Distance: %f\n",distance);
                     // calculate the relative position of both corners
                     // of the AABB
                     math::Box bbox = ptr->GetBoundingBox();
                     
                     math::Vector3 v = myPose.pos - bbox.min;
-//                    printf("relpos1: %f,%f ",p.pos.x,p.pos.y);
+                    printf("relpos1: %f,%f ",v.x,v.y);
                     double angle1 = atan2(v.y,-v.x); // angle in world space
                     angle1 += myPose.rot.GetYaw(); // convert to robot space
                     
                     v = myPose.pos - bbox.max;
-//                    printf("relpos2: %f,%f ",p.pos.x,p.pos.y);
+                    printf("relpos2: %f,%f ",v.x,v.y);
                     double angle2 = atan2(v.y,-v.x); // angle in world space
+                    
+                    
                     angle2 += myPose.rot.GetYaw(); // convert to robot space
                     angle1 = fmod(angle1+6.0*PI,2.0*PI);
                     angle2 = fmod(angle2+6.0*PI,2.0*PI);
-//                    printf("angles: %f,%f\n",angle1,angle2);
+                    printf("angles: %f,%f\n",angle1,angle2);
                     
                     // rescale the angles to 0-1
                     angle1 *= 1.0/(2.0*PI);
@@ -173,20 +245,34 @@ protected:
                         end = p2;
                     }
                     
-                    // add the pixels into the accumulators
+                    // add the pixels into the accumulator.
                     for(int i=start;i<=end;i++){
                         int j = i%pixelCt;
-                        pixelStore[j*3+0]+=r;
-                        pixelStore[j*3+1]+=g;
-                        pixelStore[j*3+2]+=b;
-//                        printf("Fill %d %f %f %f\n",j,r,g,b);
+                        blurbuf[j*3+0]+=r;
+                        blurbuf[j*3+1]+=g;
+                        blurbuf[j*3+2]+=b;
                     }
+                        
                 }
             }
+            
+            // get the brightness, to which the values should sum
+            double norm = getBright(distance)*255;
+            
+            // blur added 10/10/16
+            blurnorm(pixelStore,blurbuf,norm,0,pixelCt);
+            blurnorm(pixelStore,blurbuf,norm,1,pixelCt);
+            blurnorm(pixelStore,blurbuf,norm,2,pixelCt);
             
             // construct the final data and publish
             data.pixels.clear();
             for(int i=0;i<pixelCt;i++){
+/*                printf("Pix %d %f %f %f\n",
+                       i,
+                       pixelStore[i*3+0],
+                       pixelStore[i*3+1],
+                       pixelStore[i*3+2]);
+ */
                 p.r=std::min(255.0,pixelStore[i*3+0]);
                 p.g=std::min(255.0,pixelStore[i*3+1]);
                 p.b=std::min(255.0,pixelStore[i*3+2]);
@@ -199,7 +285,7 @@ protected:
 
 private:
     int pixelCt;
-    double *pixelStore;
+    double *pixelStore,*blurbuf;
     lightsensor_gazebo::LightSensor data;
     
     physics::ModelPtr model;
