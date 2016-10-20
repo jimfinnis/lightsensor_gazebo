@@ -159,6 +159,7 @@ add_dependencies(lightsensor_gazebo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
 ## Specify libraries to link a library or executable target against
  target_link_libraries(lightsensor_gazebo
  ${GAZEBO_LIBRARIES}
+   diamondapparatus
    ${catkin_LIBRARIES}
 )
 
